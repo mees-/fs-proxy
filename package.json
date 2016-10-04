@@ -1,0 +1,33 @@
+{
+  "name": "fs-proxy",
+  "version": "1.0.0",
+  "description": "Read and write config files as if they were normal objects",
+  "main": "src/app.js",
+  "directories": {
+    "test": "test"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "eslint-config-mees": "^1.1.9"
+  },
+  "scripts": {
+    "test": "node test/app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mees-/fs-proxy.git"
+  },
+  "keywords": [
+    "fs",
+    "proxy",
+    "config",
+    "object",
+    "fs-proxy"
+  ],
+  "author": "Mees van Dijk <mees@itisme.es>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mees-/fs-proxy/issues"
+  },
+  "homepage": "https://github.com/mees-/fs-proxy#readme"
+}
