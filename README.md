@@ -11,3 +11,37 @@ the object has a non-configurable, non-enumerable property called `_fsproxy`, th
 - `write`: emitted after the file was written
 - `error`: emitted when an error occurs
 - `kill`: this event will never be emitted but is instead listened to, emit this event if you want to unlink the object and the file, the object will continue to act like a normal object after this but it wont update the file or get updated with the file anymore
+##example
+imagine a file named `config.json`
+the content is:
+```
+{
+  "url": "localhost:8000",
+  "token": "abcdefghijk"
+}
+```
+js:
+```js
+const fsproxy = require('fsproxy')
+
+const config = fsproxy('./config.json')
+console.log(config) // {url: 'localhost:8000', 'token: 'abcdefghijk'}
+config.lastRan = 'now'
+
+// ./config.json is now:
+// {
+//   "url": "localhost:8000",
+//   "token": "abcdefghijk",
+//   "lastRan": "now"
+// }
+
+// modify ./config.json somewhere else
+
+// ./config.json is now:
+// {
+//   "url": "localhost:8000",
+//   "token": "abcdefghijk",
+//   "lastRan": "later"
+// }
+console.log(config.lastRan) // 'later'
+```
