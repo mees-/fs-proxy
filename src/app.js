@@ -17,21 +17,12 @@ module.exports = function createFsProxy(path, semiOptions) {
   // copy for readability
   const parse = options.parser.parse
   const stringify = options.parser.stringify
-  // create cache and populate with initial values from file
-  const cache = parse(fs.readFileSync(path, options.encoding))
-  // create eventer
-  const eventer = new EventEmitter()
-  // attach kill method to eventer
-  eventer.kill = kill
-  // attach eventer to cache, non-enumerable
-  Reflect.defineProperty(cache, '_fsproxy', { value: eventer })
 
+  // runtime settings
   let writePromise = null
   let killed = false
 
-  // get file discriptor
-  let fd = fs.openSync(path, 'r+')
-
+  // handlers for proxies
   const handlers = {
     set(t, id, value) {
       t[id] = value
@@ -47,6 +38,20 @@ module.exports = function createFsProxy(path, semiOptions) {
       }
     }
   }
+  // create cache and populate with initial values from file
+  let tempCache = parse(fs.readFileSync(path, options.encoding))
+  const cache = recursiveProxy(tempCache, handlers)
+  tempCache = null
+  // create eventer
+  const eventer = new EventEmitter()
+  // attach kill method to eventer
+  eventer.kill = kill
+  // attach eventer to cache, non-enumerable
+  Reflect.defineProperty(cache, '_fsproxy', { value: eventer })
+
+  // get file discriptor
+  let fd = fs.openSync(path, 'r+')
+
   // read on file change
   const watchOptions = {
     persistent: false,
@@ -78,7 +83,8 @@ module.exports = function createFsProxy(path, semiOptions) {
             Reflect.deleteProperty(cache, key)
           }
           const newCache = parse(fileContents.toString(options.encoding))
-          Object.assign(cache, newCache) // if you do cache = newCache the link with the proxy is broken
+
+          Object.assign(cache, recursiveProxy(newCache, handlers))
           // reattach events
           Reflect.defineProperty(cache, '_fsproxy', { value: eventer })
           resolve()
@@ -136,4 +142,18 @@ module.exports = function createFsProxy(path, semiOptions) {
 
   // return the proxy
   return new Proxy(cache, handlers)
+}
+
+function recursiveProxy(rObject, handlers) {
+  const object = Object.assign({}, rObject)
+  const target = {}
+  for (const key in object) {
+    if (typeof object[key] === 'object') {
+      console.log(`proxyfiing ${ key } : ${ object[key] }`)
+      target[key] = new Proxy(object[key], handlers)
+    } else {
+      target[key] = object[key]
+    }
+  }
+  return target
 }
