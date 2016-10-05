@@ -1,20 +1,27 @@
 const fs = require('fs')
 const EventEmitter = require('events')
 
+exports.data = Symbol('stringSymbol')
+
 const defaults = {
-  parser: JSON,
-  parseArgs: [],
-  stringifyArgs: [null, 2],
-  encoding: 'utf8',
-  writeOnExit: true
+  parser: {
+    parse: JSON.parse,
+    stringify: (data) => JSON.stringify(data, null, 2)
+  },
+  encoding: 'utf8'
 }
 
 module.exports = function createFsProxy(path, semiOptions) {
   // combine options from defaults and user inputted options
   const options = Object.assign({}, defaults, semiOptions)
-
-  const cache = options.parser.parse(fs.readFileSync(path, options.encoding), ...options.parseArgs)
+  // copy for readability
+  const parse = options.parser.parse
+  const stringify = options.parser.stringify
+  // create cache and populate with initial values from file
+  const cache = parse(fs.readFileSync(path, options.encoding))
+  // create eventer
   const eventer = new EventEmitter()
+  // attach eventer to cache, non-enumerable
   Reflect.defineProperty(cache, '_fsproxy', { value: eventer })
 
   let writePromise = null
@@ -23,17 +30,6 @@ module.exports = function createFsProxy(path, semiOptions) {
   // get file discriptor
   let fd = fs.openSync(path, 'r+')
 
-  // create method to stop program
-  eventer.on('kill', () => {
-    fs.unwatchFile(path)
-    killed = true
-    fs.close(fd, (err) => {
-      if (err) {
-        eventer.emit('error', err)
-      }
-      fd = null
-    })
-  })
   const handlers = {
     set(t, id, value) {
       t[id] = value
@@ -50,7 +46,13 @@ module.exports = function createFsProxy(path, semiOptions) {
     }
   }
   // read on file change
-  fs.watchFile(path, { persistent: false }, read)
+  const watchOptions = {
+    persistent: false,
+    encoding: options.encoding
+  }
+  const watcher = fs.watch(path, watchOptions)
+  watcher.on('error', (err) => eventer.emit('error', err))
+  watcher.on('change', read)
 
   function read() {
     if (writePromise) {
@@ -69,7 +71,11 @@ module.exports = function createFsProxy(path, semiOptions) {
             reject(e2)
             return
           }
-          const newCache = options.parser.parse(fileContents.toString(options.encoding), ...options.parseArgs)
+          // clear cache from all keys without reassigning
+          for (const key of Object.keys(cache)) {
+            Reflect.deleteProperty(cache, key)
+          }
+          const newCache = parse(fileContents.toString(options.encoding))
           Object.assign(cache, newCache) // if you do cache = newCache the link with the proxy is broken
           // reattach events
           Reflect.defineProperty(cache, '_fsproxy', { value: eventer })
@@ -88,9 +94,7 @@ module.exports = function createFsProxy(path, semiOptions) {
       return
     }
     writePromise = new Promise((resolve, reject) => {
-      const writeString = options.parser.stringify(cache, ...options.stringifyArgs)
-      console.log('writeString:', writeString)
-
+      const writeString = stringify(cache)
       fs.write(fd, writeString, 0, options.encoding, (err, bytesWritten) => {
         if (err) {
           reject(err)
@@ -108,15 +112,24 @@ module.exports = function createFsProxy(path, semiOptions) {
     })
   }
 
-  if (options.writeOnExit && !killed) {
+  // create method to stop program
+  eventer.on('kill', () => {
+    killed = true
+    close()
+    process.removeListener('exit', close)
+  })
+
+  function close() {
     fs.close(fd, (err) => {
       if (err) {
         eventer.emit('error', err)
       }
       fd = null
     })
-    process.on('exit', write)
+    watcher.close()
   }
+
+  process.on('exit', close)
 
   // return the proxy
   return new Proxy(cache, handlers)
