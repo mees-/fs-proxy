@@ -21,20 +21,29 @@ module.exports = function createFsProxy(path, semiOptions) {
   let killed = false
 
   // get file discriptor
-  const fd = fs.openSync(path, 'r+')
+  let fd = fs.openSync(path, 'r+')
 
   // create method to stop program
   eventer.on('kill', () => {
     fs.unwatchFile(path)
     killed = true
+    fs.close(fd, (err) => {
+      if (err) {
+        eventer.emit('error', err)
+      }
+      fd = null
+    })
   })
   const handlers = {
-    get(t, id) {
-      return t[id]
-    },
-
     set(t, id, value) {
       t[id] = value
+      if (!killed) {
+        write()
+      }
+    },
+
+    deleteProperty(t, id) {
+      Reflect.deleteProperty(t, id)
       if (!killed) {
         write()
       }
@@ -100,6 +109,12 @@ module.exports = function createFsProxy(path, semiOptions) {
   }
 
   if (options.writeOnExit && !killed) {
+    fs.close(fd, (err) => {
+      if (err) {
+        eventer.emit('error', err)
+      }
+      fd = null
+    })
     process.on('exit', write)
   }
 
