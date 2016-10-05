@@ -79,11 +79,14 @@ module.exports = function createFsProxy(path, semiOptions) {
           Object.assign(cache, newCache) // if you do cache = newCache the link with the proxy is broken
           // reattach events
           Reflect.defineProperty(cache, '_fsproxy', { value: eventer })
-          cache._fsproxy.emit('read')
           resolve()
         })
       })
-    }).catch((e) => {
+    })
+    .then(() => {
+      cache._fsproxy.emit('read')
+    })
+    .catch((e) => {
       eventer.emit('error', e)
     })
   }
@@ -103,13 +106,15 @@ module.exports = function createFsProxy(path, semiOptions) {
         resolve(bytesWritten)
         cache._fsproxy.emit('write')
       })
-    }).catch((e) => {
+    })
+    .then(() => {
+      writePromise = null
+    })
+    .catch((e) => {
       eventer.emit('error', e)
     })
 
-    writePromise.then(() => {
-      writePromise = null
-    })
+    return writePromise
   }
 
   // create method to stop program
