@@ -10,7 +10,8 @@ the object has a non-configurable, non-enumerable property called `_fsproxy`, th
 - `read`: emitted after the file was read
 - `write`: emitted after the file was written
 - `error`: emitted when an error occurs
-- `kill`: this event will never be emitted but is instead listened to, emit this event if you want to unlink the object and the file, the object will continue to act like a normal object after this but it wont update the file or get updated with the file anymore
+
+`fsproxy(path)._fsproxy.kill()`: Call this method to unlink the object and the file, the object will continue to act like a normal object but it wont update the file or get updated with the file anymore, returns a plain object detached from fsproxy
 ##example
 imagine a file named `config.json`
 the content is:
@@ -44,4 +45,6 @@ config.lastRan = 'now'
 //   "lastRan": "later"
 // }
 console.log(config.lastRan) // 'later'
+
+const plainObject = config._fsproxy.kill()
 ```

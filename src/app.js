@@ -21,6 +21,8 @@ module.exports = function createFsProxy(path, semiOptions) {
   const cache = parse(fs.readFileSync(path, options.encoding))
   // create eventer
   const eventer = new EventEmitter()
+  // attach kill method to eventer
+  eventer.kill = kill
   // attach eventer to cache, non-enumerable
   Reflect.defineProperty(cache, '_fsproxy', { value: eventer })
 
@@ -117,14 +119,8 @@ module.exports = function createFsProxy(path, semiOptions) {
     return writePromise
   }
 
-  // create method to stop program
-  eventer.on('kill', () => {
+  function kill() {
     killed = true
-    close()
-    process.removeListener('exit', close)
-  })
-
-  function close() {
     fs.close(fd, (err) => {
       if (err) {
         eventer.emit('error', err)
@@ -132,9 +128,11 @@ module.exports = function createFsProxy(path, semiOptions) {
       fd = null
     })
     watcher.close()
+    process.removeListener('exit', kill)
+    return Object.assign({}, cache)
   }
 
-  process.on('exit', close)
+  process.on('exit', kill)
 
   // return the proxy
   return new Proxy(cache, handlers)
