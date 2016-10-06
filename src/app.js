@@ -110,7 +110,6 @@ module.exports = function createFsProxy(path, semiOptions) {
     writePromise = new Promise((resolve, reject) => {
       const exposedCache = recursiveFilter(cache, options.filter)
       const writeString = stringify(exposedCache)
-      console.log(`write: ${ writeString }`)
       fs.write(fd, writeString, 0, options.encoding, (err, bytesWritten) => {
         if (err) {
           reject(err)
