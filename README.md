@@ -27,6 +27,8 @@ js:
 ```js
 const fsproxy = require('fsproxy')
 
+const filter = (key, value) => !key[0].startsWith('no')
+
 const config = fsproxy('./config.json')
 console.log(config) // {url: 'localhost:8000', 'token: 'abcdefghijk'}
 config.lastRan = 'now'
@@ -48,8 +50,15 @@ config.lastRan = 'now'
 // }
 console.log(config.lastRan) // 'later'
 
-config._fsproxy.ignore('ignoreThis')
-config.ignoreThis = 'this will not be added to the file'
+config.noAddThis = 'this will not be added to the file, but it is available in the object'
+console.log(config.noAddThis) // this will not be added to the file, but it is available in the object
+
+// ./config.json is now:
+// {
+//   "url": "localhost:8000",
+//   "token": "abcdefghijk",
+//   "lastRan": "later"
+// }
 
 const plainObject = config._fsproxy.kill()
 ```
