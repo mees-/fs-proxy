@@ -1,5 +1,6 @@
 const fs = require('fs')
 const EventEmitter = require('events')
+const deepAssign = require('deep-assign')
 
 exports.data = Symbol('stringSymbol')
 
@@ -8,7 +9,8 @@ const defaults = {
     parse: JSON.parse,
     stringify: (data) => JSON.stringify(data, null, 2)
   },
-  encoding: 'utf8'
+  encoding: 'utf8',
+  filter: () => true
 }
 
 module.exports = function createFsProxy(path, semiOptions) {
@@ -66,6 +68,8 @@ module.exports = function createFsProxy(path, semiOptions) {
       writePromise = writePromise.then(read)
       return
     }
+    const shadows = recursiveFilter(cache, () => !options.filter(...arguments))
+    console.log('shadows:', shadows)
     return new Promise((resolve, reject) => {
       fs.stat(path, (e1, stats) => {
         if (e1) {
@@ -78,15 +82,14 @@ module.exports = function createFsProxy(path, semiOptions) {
             reject(e2)
             return
           }
-          // clear cache from all keys without reassigning
+          // clear cache from all keys without reassigning and populate shadowPairs
           for (const key of Object.keys(cache)) {
             Reflect.deleteProperty(cache, key)
           }
           const newCache = parse(fileContents.toString(options.encoding))
 
-          Object.assign(cache, recursiveProxy(newCache, handlers))
-          // reattach events
-          Reflect.defineProperty(cache, '_fsproxy', { value: eventer })
+          deepAssign(cache, recursiveProxy(newCache, handlers), recursiveProxy(shadows, handlers))
+
           resolve()
         })
       })
@@ -105,7 +108,9 @@ module.exports = function createFsProxy(path, semiOptions) {
       return
     }
     writePromise = new Promise((resolve, reject) => {
-      const writeString = stringify(cache)
+      const exposedCache = recursiveFilter(cache, options.filter)
+      const writeString = stringify(exposedCache)
+      console.log(`write: ${ writeString }`)
       fs.write(fd, writeString, 0, options.encoding, (err, bytesWritten) => {
         if (err) {
           reject(err)
@@ -137,7 +142,6 @@ module.exports = function createFsProxy(path, semiOptions) {
     process.removeListener('exit', kill)
     return Object.assign({}, cache)
   }
-
   process.on('exit', kill)
 
   // return the proxy
@@ -147,13 +151,27 @@ module.exports = function createFsProxy(path, semiOptions) {
 function recursiveProxy(rObject, handlers) {
   const object = Object.assign({}, rObject)
   const target = {}
-  for (const key in object) {
+  for (const key of Object.keys(object)) {
     if (typeof object[key] === 'object') {
-      console.log(`proxyfiing ${ key } : ${ object[key] }`)
       target[key] = new Proxy(object[key], handlers)
     } else {
       target[key] = object[key]
     }
   }
   return target
+}
+
+function recursiveFilter(object, filter, prefix = []) {
+  const result = {}
+  for (const key of Object.keys(object)) {
+    if (filter([...prefix, key], object[key])) {
+      result[key] = object[key]
+    }
+  }
+  for (const key of Object.keys(result)) {
+    if (typeof result[key] === 'object' && !Array.isArray(result[key])) {
+      result[key] = recursiveFilter(result[key], filter, [...prefix, key])
+    }
+  }
+  return result
 }

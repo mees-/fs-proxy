@@ -1,6 +1,6 @@
 {
   "name": "fs-proxy",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Read and write config files as if they were normal objects",
   "main": "src/app.js",
   "directories": {
@@ -30,5 +30,8 @@
   "bugs": {
     "url": "https://github.com/mees-/fs-proxy/issues"
   },
-  "homepage": "https://github.com/mees-/fs-proxy#readme"
+  "homepage": "https://github.com/mees-/fs-proxy#readme",
+  "dependencies": {
+    "deep-assign": "^2.0.0"
+  }
 }
