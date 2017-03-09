@@ -7,7 +7,7 @@ exports.data = Symbol('stringSymbol')
 const defaults = {
   parser: {
     parse: JSON.parse,
-    stringify: (data) => JSON.stringify(data, null, 2)
+    stringify: data => JSON.stringify(data, null, 2)
   },
   encoding: 'utf8',
   filter: () => true
@@ -31,6 +31,7 @@ module.exports = function createFsProxy(path, semiOptions) {
       if (!killed) {
         write()
       }
+      return true
     },
 
     deleteProperty(t, id) {
@@ -38,6 +39,14 @@ module.exports = function createFsProxy(path, semiOptions) {
       if (!killed) {
         write()
       }
+      return true
+    },
+    defineProperty(t, id, desc) {
+      Object.defineProperty(t, id, desc)
+      if (!killed) {
+        write()
+      }
+      return true
     }
   }
   // create cache and populate with initial values from file
@@ -60,7 +69,7 @@ module.exports = function createFsProxy(path, semiOptions) {
     encoding: options.encoding
   }
   const watcher = fs.watch(path, watchOptions)
-  watcher.on('error', (err) => eventer.emit('error', err))
+  watcher.on('error', err => eventer.emit('error', err))
   watcher.on('change', read)
 
   function read() {
