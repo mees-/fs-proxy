@@ -78,7 +78,6 @@ module.exports = function createFsProxy(path, semiOptions) {
       return
     }
     const shadows = recursiveFilter(cache, () => !options.filter(...arguments))
-    console.log('shadows:', shadows)
     return new Promise((resolve, reject) => {
       fs.stat(path, (e1, stats) => {
         if (e1) {
