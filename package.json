@@ -8,7 +8,7 @@
   },
   "devDependencies": {
     "chai": "^3.5.0",
-    "eslint": "^3.7.1",
+    "eslint": "^7.2.0",
     "eslint-config-mees": "^1.1.10"
   },
   "scripts": {
